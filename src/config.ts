@@ -9,6 +9,7 @@ export interface FrameworkConfig {
   readonly skillsBasePath: string;
   readonly manifestPath: string;
   readonly manifestFormat: ManifestFormat;
+  readonly likelyIndicatorPaths?: readonly string[];
 }
 
 export const FRAMEWORKS: readonly FrameworkConfig[] = [
@@ -43,6 +44,15 @@ export const FRAMEWORKS: readonly FrameworkConfig[] = [
     skillsBasePath: `.gemini/skills/${SKILLS_ROOT_DIR}`,
     manifestPath: "GEMINI.md",
     manifestFormat: "markdown",
+  },
+  {
+    value: "kiro",
+    label: "Kiro",
+    aliases: ["kiro-ide", "kiro-cli"],
+    skillsBasePath: `.kiro/skills/${SKILLS_ROOT_DIR}`,
+    manifestPath: ".kiro/steering/pinelabs-agent-skills.md",
+    manifestFormat: "markdown",
+    likelyIndicatorPaths: [".kiro", ".kiro/steering", ".kiro/skills"],
   },
   {
     value: "opencode",

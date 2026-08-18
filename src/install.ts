@@ -166,9 +166,19 @@ export async function detectLikelyFrameworks(projectPath: string): Promise<Frame
   const likely: FrameworkConfig[] = [];
 
   for (const framework of FRAMEWORKS) {
-    const manifestPath = resolveInsideProject(projectRoot, framework.manifestPath);
-    const skillsPath = resolveInsideProject(projectRoot, framework.skillsBasePath);
-    if ((await pathExists(manifestPath)) || (await pathExists(dirname(skillsPath)))) {
+    const indicatorPaths = [
+      framework.manifestPath,
+      dirname(framework.skillsBasePath),
+      ...(framework.likelyIndicatorPaths ?? []),
+    ];
+    let found = false;
+    for (const indicatorPath of indicatorPaths) {
+      if (await pathExists(resolveInsideProject(projectRoot, indicatorPath))) {
+        found = true;
+        break;
+      }
+    }
+    if (found) {
       likely.push(framework);
     }
   }

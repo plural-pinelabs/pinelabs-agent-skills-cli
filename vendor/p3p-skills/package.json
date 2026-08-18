@@ -1,0 +1,34 @@
+{
+  "name": "p3p-skills",
+  "version": "1.0.2",
+  "description": "Pine Labs P3P Skills for AI coding agents",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plural-pinelabs/p3p-skills.git"
+  },
+  "homepage": "https://github.com/plural-pinelabs/p3p-skills#readme",
+  "bugs": {
+    "url": "https://github.com/plural-pinelabs/p3p-skills/issues"
+  },
+  "keywords": [
+    "p3p",
+    "skills",
+    "ai-agents",
+    "payments",
+    "upi",
+    "x402",
+    "pinelabs"
+  ],
+  "files": [
+    "README.md",
+    "p3p-pay/**",
+    "p3p-sdk-integration/**"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
