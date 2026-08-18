@@ -1,0 +1,129 @@
+{
+  "skill": "p3p-pay",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "pay-001",
+      "description": "Basic payment request",
+      "input": "Pay ₹100 to the API service for my agent",
+      "expectedBehavior": [
+        "Check if p3p CLI is installed",
+        "Check if credentials are configured",
+        "Create a mandate for 10000 paise",
+        "Show QR URL to user",
+        "Poll mandate status until AUTHORIZED",
+        "Create PPT token",
+        "Execute debit for 10000 paise",
+        "Confirm transaction to user"
+      ],
+      "mustNotDo": [
+        "Ask user for UPI PIN or bank credentials",
+        "Guess the merchant ID",
+        "Skip mandate status polling",
+        "Proceed to token before mandate is AUTHORIZED"
+      ]
+    },
+    {
+      "id": "pay-002",
+      "description": "CLI not found in PATH",
+      "input": "Set up P3P and pay ₹50 for API credits",
+      "expectedBehavior": [
+        "Run `which p3p` — fails",
+        "Search common install locations with find command",
+        "If not found: run `npm install -g @pine-labs-online/p3p-cli`",
+        "Verify install with `p3p --version`",
+        "Continue with mandate creation"
+      ],
+      "mustNotDo": [
+        "Immediately run npm install without searching first",
+        "Give up if which p3p fails"
+      ]
+    },
+    {
+      "id": "pay-003",
+      "description": "No credentials configured",
+      "input": "Use P3P to pay for my order",
+      "expectedBehavior": [
+        "Run `p3p config list` — shows empty or missing credentials",
+        "Check for PINE_LABS_CLIENT_ID env var",
+        "If neither set: run `p3p login --interactive`",
+        "Proceed after authentication"
+      ],
+      "mustNotDo": [
+        "Ask the user to provide client_id or client_secret directly in chat",
+        "Skip authentication check"
+      ]
+    },
+    {
+      "id": "pay-004",
+      "description": "Correct paise conversion",
+      "input": "Pay ₹500 for the premium plan",
+      "expectedBehavior": [
+        "Use 50000 as the --amount value (500 rupees × 100)",
+        "Show user ₹500.00 in confirmation"
+      ],
+      "mustNotDo": [
+        "Pass 500 as the amount (treating rupees as paise)",
+        "Pass 5000 as the amount"
+      ]
+    },
+    {
+      "id": "pay-005",
+      "description": "Product information question",
+      "input": "What is Pine Labs P3P and how does it work?",
+      "expectedBehavior": [
+        "Read references/cli-setup.md for product FAQ",
+        "Answer from the reference without running CLI commands",
+        "Explain x402 protocol, UPI ReservePay, mandate/token lifecycle"
+      ],
+      "mustNotDo": [
+        "Run any p3p CLI commands",
+        "Hallucinate product details not in the reference"
+      ]
+    },
+    {
+      "id": "pay-006",
+      "description": "QR timeout / mandate not authorized",
+      "input": "The QR expired before I could scan it",
+      "expectedBehavior": [
+        "Acknowledge the QR has expired",
+        "Offer to create a new mandate",
+        "On confirmation: run p3p mandates create again",
+        "Show new QR URL to user"
+      ],
+      "mustNotDo": [
+        "Reuse the old payment_method_id for token creation",
+        "Proceed to token without AUTHORIZED mandate"
+      ]
+    },
+    {
+      "id": "pay-007",
+      "description": "Multi-charge scenario",
+      "input": "I want to set up a token to pay for up to 5 API calls at ₹10 each",
+      "expectedBehavior": [
+        "Create mandate for at least 5000 paise total (5 × 1000)",
+        "Create token with max_amount 5000 and awareness of multi-charge",
+        "Explain to user how multi-charge works"
+      ],
+      "mustNotDo": [
+        "Create a new mandate for each individual API call",
+        "Create a token with max_amount below total needed"
+      ]
+    },
+    {
+      "id": "pay-008",
+      "description": "Sandbox vs production",
+      "input": "Test the payment flow in sandbox",
+      "expectedBehavior": [
+        "Check PINE_LABS_ENV or p3p config env",
+        "Confirm SANDBOX environment is active",
+        "Use test credentials",
+        "Inform user that ppt_test_ prefix indicates sandbox token"
+      ],
+      "mustNotDo": [
+        "Use production credentials for testing",
+        "Treat sandbox and production flows differently in terms of commands"
+      ]
+    }
+  ]
+}
