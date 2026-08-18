@@ -31,10 +31,9 @@
     "package.json"
   ],
   "scripts": {
-    "generate": "node ../../scripts/generate-agent-skills-cli.mjs",
-    "build": "node ../../scripts/generate-agent-skills-cli.mjs && tsc -p tsconfig.json",
-    "test": "node ../../scripts/generate-agent-skills-cli.mjs && tsc -p tsconfig.json && node --test test/*.test.mjs",
-    "prepack": "node ../../scripts/generate-agent-skills-cli.mjs && tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test test/*.test.mjs",
+    "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "commander": "^12.1.0"
