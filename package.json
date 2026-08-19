@@ -1,6 +1,6 @@
 {
   "name": "pinelabs-agent-skills-cli",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Install Pine Labs Online agent skills, payment workflow guidance, and integration safeguards into AI coding assistant projects.",
   "keywords": [
     "pinelabs",

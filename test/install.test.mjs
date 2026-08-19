@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { FRAMEWORKS, parseFrameworkList } from "../dist/config.js";
@@ -21,7 +22,7 @@ import {
 } from "../dist/install.js";
 
 const execFileAsync = promisify(execFile);
-const cliPath = new URL("../dist/index.js", import.meta.url);
+const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const legacy040GettingStartedSkill = `# Getting Started
 
 Setup, authentication, environments, and integration kickoff guidance.
@@ -53,15 +54,15 @@ test("install writes skills and keeps manifest updates idempotent", async () => 
   await installSkillsForFramework(framework, projectRoot);
   const primarySkill = await readFile(join(projectRoot, ".github/skills/pinelabs-skills/SKILL.md"), "utf8");
   assert.match(primarySkill, /Pine Labs Best Practices/);
-  const pgOrderSkill = await readFile(join(projectRoot, ".github/skills/pinelabs-skills/pg/orders.md"), "utf8");
+  const pgOrderSkill = await readFile(join(projectRoot, ".github/skills/pinelabs-skills/payments/orders.md"), "utf8");
   assert.match(pgOrderSkill, /# Orders/);
   const mobileRouterSkill = await readFile(
-    join(projectRoot, ".github/skills/pinelabs-skills/pg/mobile-sdks/README.md"),
+    join(projectRoot, ".github/skills/pinelabs-skills/payments/mobile-sdks/README.md"),
     "utf8",
   );
   assert.match(mobileRouterSkill, /ask: Android, iOS, or Flutter\?/);
   const webReactSkill = await readFile(
-    join(projectRoot, ".github/skills/pinelabs-skills/pg/web-sdks/react-native.md"),
+    join(projectRoot, ".github/skills/pinelabs-skills/payments/web-sdks/react-native.md"),
     "utf8",
   );
   assert.match(webReactSkill, /# Web SDK - React Native/);
@@ -349,7 +350,7 @@ test("doctor reports installed status and versions", async () => {
   assert.ok(framework);
   await installSkillsForFramework(framework, projectRoot);
 
-  const { stdout } = await execFileAsync(process.execPath, [cliPath.pathname, "doctor", "--path", projectRoot]);
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "doctor", "--path", projectRoot]);
   assert.match(stdout, /Installed Pine Labs agent skills:/);
   assert.match(stdout, /github-copilot\tcurrent\tinstalled=/);
   assert.match(stdout, /\tcurrent=/);
@@ -420,7 +421,7 @@ test("generic AGENTS.md does not trigger ambiguous framework detection", async (
 test("add skills --yes fails when detection is empty or ambiguous", async () => {
   const emptyRoot = await mkdtemp(join(tmpdir(), "pinelabs-skills-empty-"));
   await assert.rejects(
-    execFileAsync(process.execPath, [cliPath.pathname, "add", "skills", "--yes", "--path", emptyRoot]),
+    execFileAsync(process.execPath, [cliPath, "add", "skills", "--yes", "--path", emptyRoot]),
     /No assistant framework was detected/,
   );
 
@@ -428,7 +429,7 @@ test("add skills --yes fails when detection is empty or ambiguous", async () => 
   await mkdir(join(ambiguousRoot, ".cursor"), { recursive: true });
   await mkdir(join(ambiguousRoot, ".kiro"), { recursive: true });
   await assert.rejects(
-    execFileAsync(process.execPath, [cliPath.pathname, "add", "skills", "--yes", "--path", ambiguousRoot]),
+    execFileAsync(process.execPath, [cliPath, "add", "skills", "--yes", "--path", ambiguousRoot]),
     /Multiple assistant frameworks were detected/,
   );
 });

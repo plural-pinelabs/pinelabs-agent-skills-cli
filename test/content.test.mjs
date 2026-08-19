@@ -52,14 +52,14 @@ const requiredWorkflowSections = [
 ];
 const sdkBooleanContracts = [
   {
-    assetPath: "pg/payment-option.md",
+    assetPath: "payments/payment-option.md",
     operationId: "getPaymentOption",
     field: "fetch_vpa",
     expected: true,
     source: "OpenAPI PaymentOptionRequest.payment_option.upi_details.payer.fetch_vpa",
   },
   {
-    assetPath: "pg/affordability-suite.md",
+    assetPath: "payments/affordability-suite.md",
     operationId: "offer-validation-create",
     field: "is_mobile_number_required_for_eligibility",
     expected: false,
@@ -215,12 +215,12 @@ test("generated skill catalog is populated", () => {
   assert.ok(paths.has("getting-started/README.md"));
   assert.ok(paths.has("getting-started/authentication.md"));
   assert.ok(paths.has("getting-started/dashboard-signup-and-token.md"));
-  assert.ok(paths.has("pg/orders.md"));
-  assert.ok(paths.has("pg/mobile-sdks/README.md"));
-  assert.ok(paths.has("pg/mobile-sdks/android.md"));
-  assert.ok(paths.has("pg/web-sdks/README.md"));
-  assert.ok(paths.has("pg/web-sdks/react-native.md"));
-  assert.ok(paths.has("pg/references/REFERENCE.md"));
+  assert.ok(paths.has("payments/orders.md"));
+  assert.ok(paths.has("payments/mobile-sdks/README.md"));
+  assert.ok(paths.has("payments/mobile-sdks/android.md"));
+  assert.ok(paths.has("payments/web-sdks/README.md"));
+  assert.ok(paths.has("payments/web-sdks/react-native.md"));
+  assert.ok(paths.has("payments/references/REFERENCE.md"));
   assert.deepEqual(SKILL_ASSETS.filter((asset) => asset.path.endsWith("SKILL.md")).map((asset) => asset.path), [
     "SKILL.md",
   ]);
@@ -280,7 +280,7 @@ test("generated skill catalog includes workflow and migration assets", () => {
 });
 
 test("mobile SDK skills include official package setup, initialization, and backend reconciliation", () => {
-  const android = SKILL_ASSETS.find((asset) => asset.path === "pg/mobile-sdks/android.md");
+  const android = SKILL_ASSETS.find((asset) => asset.path === "payments/mobile-sdks/android.md");
   assert.ok(android);
   assert.match(android.content, /com\.github\.plural-pinelabs:Pinelabs-Android-SDK:1\.10\.0/);
   assert.match(android.content, /ExpressSDKInitializer\(\)\.initializeSDK/);
@@ -291,7 +291,7 @@ test("mobile SDK skills include official package setup, initialization, and back
   assert.match(android.content, /reconcileOrderOnBackend/);
   assert.match(android.content, /minSdk.*26/);
 
-  const flutter = SKILL_ASSETS.find((asset) => asset.path === "pg/mobile-sdks/flutter.md");
+  const flutter = SKILL_ASSETS.find((asset) => asset.path === "payments/mobile-sdks/flutter.md");
   assert.ok(flutter);
   assert.match(flutter.content, /pinelabs_native: \^1\.0\.0/);
   assert.match(flutter.content, /PinelabsFlutterSdk/);
@@ -300,7 +300,7 @@ test("mobile SDK skills include official package setup, initialization, and back
   assert.match(flutter.content, /reconcileOrder/);
   assert.match(flutter.content, /jitpack\.io/);
 
-  const ios = SKILL_ASSETS.find((asset) => asset.path === "pg/mobile-sdks/ios.md");
+  const ios = SKILL_ASSETS.find((asset) => asset.path === "payments/mobile-sdks/ios.md");
   assert.ok(ios);
   assert.match(ios.content, /Infinity_Checkout_iOS_SDK/);
   assert.match(ios.content, /import PineLabsOnline_IOS_SDK/);
@@ -310,13 +310,13 @@ test("mobile SDK skills include official package setup, initialization, and back
   assert.doesNotMatch(ios.content, /import PineLabsOnlineSDK\b/);
   assert.match(ios.content, /Verified: 2026-08-19/);
 
-  const androidWeb = SKILL_ASSETS.find((asset) => asset.path === "pg/web-sdks/android.md");
+  const androidWeb = SKILL_ASSETS.find((asset) => asset.path === "payments/web-sdks/android.md");
   assert.ok(androidWeb);
   assert.match(androidWeb.content, /EDGE-SDK\.aar/);
   assert.match(androidWeb.content, /EdgeManager/);
   assert.match(androidWeb.content, /EdgeResponseCallback/);
 
-  const iosWeb = SKILL_ASSETS.find((asset) => asset.path === "pg/web-sdks/ios.md");
+  const iosWeb = SKILL_ASSETS.find((asset) => asset.path === "payments/web-sdks/ios.md");
   assert.ok(iosWeb);
   assert.match(iosWeb.content, /PineLabsWebSDK\.xcframework/);
   assert.match(iosWeb.content, /import UIKit/);
@@ -325,13 +325,13 @@ test("mobile SDK skills include official package setup, initialization, and back
   assert.match(iosWeb.content, /iOS 16 or iOS 17/);
   assert.doesNotMatch(iosWeb.content, /iOS 12\+/);
 
-  const flutterWeb = SKILL_ASSETS.find((asset) => asset.path === "pg/web-sdks/flutter.md");
+  const flutterWeb = SKILL_ASSETS.find((asset) => asset.path === "payments/web-sdks/flutter.md");
   assert.ok(flutterWeb);
   assert.match(flutterWeb.content, /pine_payment_sdk: \^1\.0\.0/);
   assert.match(flutterWeb.content, /PinePaymentSdk\.startPaymentWithRedirect/);
   assert.match(flutterWeb.content, /PaymentStatus\.cancelled/);
 
-  const reactNativeWeb = SKILL_ASSETS.find((asset) => asset.path === "pg/web-sdks/react-native.md");
+  const reactNativeWeb = SKILL_ASSETS.find((asset) => asset.path === "payments/web-sdks/react-native.md");
   assert.ok(reactNativeWeb);
   assert.match(reactNativeWeb.content, /react-native-plural react-native-webview/);
   assert.match(reactNativeWeb.content, /SimpleWebView/);
@@ -506,12 +506,12 @@ test("generated examples keep OAuth secrets separate from runtime payment inputs
     );
   }
 
-  const applePaySkill = SKILL_ASSETS.find((asset) => asset.path === "pg/apple-pay.md");
+  const applePaySkill = SKILL_ASSETS.find((asset) => asset.path === "payments/apple-pay.md");
   assert.ok(applePaySkill);
   assert.match(applePaySkill.content, /securePineLabsInput/);
   assert.doesNotMatch(applePaySkill.content, /cryptogram[^,\n]+PINELABS_CLIENT_SECRET/i);
 
-  const cardPaymentsSkill = SKILL_ASSETS.find((asset) => asset.path === "pg/card-payments.md");
+  const cardPaymentsSkill = SKILL_ASSETS.find((asset) => asset.path === "payments/card-payments.md");
   assert.ok(cardPaymentsSkill);
   assert.match(cardPaymentsSkill.content, /PCI DSS/i);
   assert.match(cardPaymentsSkill.content, /hosted checkout/i);
@@ -632,19 +632,19 @@ test("manifest references every generated skill file", () => {
     assert.match(manifest, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(manifest, /\/SKILL\.md/);
-  assert.match(manifest, /pg\/mobile-sdks\/README\.md/);
-  assert.match(manifest, /pg\/web-sdks\/README\.md/);
+  assert.match(manifest, /payments\/mobile-sdks\/README\.md/);
+  assert.match(manifest, /payments\/web-sdks\/README\.md/);
   assert.match(manifest, /p3p\/README\.md/);
   assert.match(manifest, /getting-started\/authentication\.md/);
   assert.match(manifest, /getting-started\/dashboard-signup-and-token\.md/);
   assert.match(manifest, /p3p\/pay\.md/);
   assert.match(manifest, /p3p\/sdk-integration\.md/);
-  assert.match(manifest, /pg\/orders\.md/);
-  assert.match(manifest, /pg\/mobile-sdks\/android\.md/);
-  assert.match(manifest, /pg\/web-sdks\/react-native\.md/);
+  assert.match(manifest, /payments\/orders\.md/);
+  assert.match(manifest, /payments\/mobile-sdks\/android\.md/);
+  assert.match(manifest, /payments\/web-sdks\/react-native\.md/);
   assert.match(manifest, /subscriptions\/subscriptions-plans\.md/);
   assert.match(manifest, /getting-started\/references\/REFERENCE\.md/);
-  assert.match(manifest, /pg\/references\/REFERENCE\.md/);
+  assert.match(manifest, /payments\/references\/REFERENCE\.md/);
   assert.match(manifest, /settlements\/references\/REFERENCE\.md/);
   assert.match(manifest, /subscriptions\/references\/REFERENCE\.md/);
   assert.match(manifest, /p3p\/references\/REFERENCE\.md/);

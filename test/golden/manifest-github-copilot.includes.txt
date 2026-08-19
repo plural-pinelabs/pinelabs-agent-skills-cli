@@ -15,11 +15,11 @@
 .github/skills/pinelabs-skills/upgrade-advisor/installer.md
 .github/skills/pinelabs-skills/upgrade-advisor/integration.md
 .github/skills/pinelabs-skills/getting-started/README.md
-.github/skills/pinelabs-skills/pg/README.md
+.github/skills/pinelabs-skills/payments/README.md
 .github/skills/pinelabs-skills/p3p/README.md
 .github/skills/pinelabs-skills/getting-started/dashboard-signup-and-token.md
-.github/skills/pinelabs-skills/pg/mobile-sdks/README.md
-.github/skills/pinelabs-skills/pg/web-sdks/README.md
+.github/skills/pinelabs-skills/payments/mobile-sdks/README.md
+.github/skills/pinelabs-skills/payments/web-sdks/README.md
 .github/skills/pinelabs-skills/p3p/pay.md
 .github/skills/pinelabs-skills/p3p/sdk-integration.md
 .github/skills/pinelabs-skills/p3p/references/REFERENCE.md

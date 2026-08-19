@@ -69,23 +69,6 @@ For raw API integrations, route assistants to `getting-started/authentication.md
 
 After installing the skills, prompts such as “Generate an access token for Pine Labs APIs” route assistants to `getting-started/dashboard-signup-and-token.md` and `getting-started/authentication.md` for the full credential and token flow. Keep credentials and access tokens out of browser code, mobile apps, committed files, screenshots, and logs.
 
-## P3P Skills
-
-The installer also bundles Pine Labs P3P skills from the curated `p3p-skills` source snapshot:
-
-- `p3p/pay.md` guides CLI-driven UPI ReservePay flows for agent payments: mandate creation, PPT token creation, debit execution, webhook listening, and sandbox checks.
-- `p3p/sdk-integration.md` guides application integration for x402 payment middleware using the P3P server/client SDKs, framework templates, and sandbox test data.
-
-These are guidance assets only. The installer does not install runtime packages. Install the needed P3P runtime dependency in the target project when the assistant asks for it:
-
-```bash
-npm install -g @pine-labs-online/p3p-cli
-npm install p3p-server-sdk p3p-client-sdk
-pip install pinelabs-online-p3p-server-sdk pinelabs-online-p3p-client-sdk
-```
-
-Browser-facing templates route through backend-owned P3P code so Pine Labs client secrets stay server-side.
-
 ## Commands
 
 | Command | Purpose |
@@ -183,7 +166,7 @@ pinelabs-skills/
 │   ├── authentication.md                         <- OAuth token generation and credential handling
 │   ├── dashboard-signup-and-token.md             <- Dashboard signup, API key setup, and first token guidance
 │   └── references/REFERENCE.md                   <- Index for getting-started skill files
-├── pg/                                           <- Payment gateway domain folder
+├── payments/                                           <- Payment gateway domain folder
 │   ├── README.md                                 <- Domain router for payment gateway scenarios
 │   ├── orders.md                                 <- Order creation, fetch, capture, cancel lifecycle
 │   ├── checkout.md                               <- Hosted checkout and redirect flow guidance
@@ -217,7 +200,7 @@ pinelabs-skills/
 │   │   ├── flutter.md                            <- Flutter web SDK integration guidance
 │   │   ├── react-native.md                       <- React Native web SDK integration guidance
 │   │   └── faqs.md                               <- Web SDK troubleshooting and FAQs
-│   └── references/REFERENCE.md                   <- Index for PG skill files
+│   └── references/REFERENCE.md                   <- Index for payments skill files
 ├── settlements/                                  <- Settlements and fund movement domain folder
 │   ├── README.md                                 <- Domain router for refunds/payouts/settlements
 │   ├── refunds.md                                <- Refund initiation and status handling
@@ -250,6 +233,23 @@ The framework manifest is updated inside a managed block:
 
 Content outside the managed block is preserved. Re-running `add skills` or `update` replaces the block and skill files in place, so installs are idempotent. If a manifest contains only one marker or a damaged managed block, the CLI stops and asks you to repair the file before rerunning.
 
+## P3P Skills
+
+The installer also bundles Pine Labs P3P skills from the curated `p3p-skills` source snapshot:
+
+- `p3p/pay.md` guides CLI-driven UPI ReservePay flows for agent payments: mandate creation, PPT token creation, debit execution, webhook listening, and sandbox checks.
+- `p3p/sdk-integration.md` guides application integration for x402 payment middleware using the P3P server/client SDKs, framework templates, and sandbox test data.
+
+These are guidance assets only. The installer does not install runtime packages. Install the needed P3P runtime dependency in the target project when the assistant asks for it:
+
+```bash
+npm install -g @pine-labs-online/p3p-cli
+npm install p3p-server-sdk p3p-client-sdk
+pip install pinelabs-online-p3p-server-sdk pinelabs-online-p3p-client-sdk
+```
+
+Browser-facing templates route through backend-owned P3P code so Pine Labs client secrets stay server-side.
+
 
 ## How Assistants Use The Skills
 
@@ -259,7 +259,7 @@ The generated manifest tells the assistant to start with:
 SKILL.md
 ```
 
-The root skill contains routing and safety rules. For validation, webhook, go-live, troubleshooting, upgrade, or migration work, the assistant reads the matching workflow guide before API files. Validation asks route through the focused guide for checkout/orders, refunds, webhooks, mobile/web SDKs, subscriptions, or settlements. Integration upgrades route through a source-verified release registry and UAT regression checklist. For API-specific work, it reads the domain router, then the matching area guidance file (for example, `pg/orders.md`), and uses the domain reference index for quick cross-area lookup. For P3P work, it routes to `p3p/pay.md` for CLI-driven agent payments or `p3p/sdk-integration.md` for x402 SDK integration. For generic "mobile SDK" or "web SDK" asks, the assistant first requests platform choice, then routes to platform-specific files. The manifest also includes the OpenAPI version and spec hash used to generate the core Pine Labs API guidance, which helps trace the package back to the API surface it was built from.
+The root skill contains routing and safety rules. For validation, webhook, go-live, troubleshooting, upgrade, or migration work, the assistant reads the matching workflow guide before API files. Validation asks route through the focused guide for checkout/orders, refunds, webhooks, mobile/web SDKs, subscriptions, or settlements. Integration upgrades route through a source-verified release registry and UAT regression checklist. For API-specific work, it reads the domain router, then the matching area guidance file (for example, `payments/orders.md`), and uses the domain reference index for quick cross-area lookup. For P3P work, it routes to `p3p/pay.md` for CLI-driven agent payments or `p3p/sdk-integration.md` for x402 SDK integration. For generic "mobile SDK" or "web SDK" asks, the assistant first requests platform choice, then routes to platform-specific files. The manifest also includes the OpenAPI version and spec hash used to generate the core Pine Labs API guidance, which helps trace the package back to the API surface it was built from.
 
 Example prompts after installation:
 
@@ -288,31 +288,31 @@ Integrate P3P x402 middleware into my Next.js app without exposing client secret
 **AI:** *reads `SKILL.md`* -> Explains auth, UAT setup, order-first flow, and safest integration path
 
 **You:** “Create a Pine Labs order flow in my backend and keep it in UAT”
-**AI:** *reads `SKILL.md` -> `pg/orders.md`* -> Builds an order creation flow with UAT-safe guidance
+**AI:** *reads `SKILL.md` -> `payments/orders.md`* -> Builds an order creation flow with UAT-safe guidance
 
 **You:** “Generate an access token for Pine Labs APIs”
 **AI:** *reads `getting-started/dashboard-signup-and-token.md` -> `getting-started/authentication.md`* -> Provides Dashboard credential setup and OAuth token generation guidance
 
 **You:** “Set up hosted checkout for my app”
-**AI:** *reads `SKILL.md` -> `pg/checkout.md`* -> Creates a hosted checkout link flow with redirect handling
+**AI:** *reads `SKILL.md` -> `payments/checkout.md`* -> Creates a hosted checkout link flow with redirect handling
 
 **You:** “Accept card payments with OTP authentication”
-**AI:** *reads `SKILL.md` -> `pg/card-payments.md`* -> Explains card payment creation, card lookup, OTP generation, and OTP submission
+**AI:** *reads `SKILL.md` -> `payments/card-payments.md`* -> Explains card payment creation, card lookup, OTP generation, and OTP submission
 
 **You:** “Add UPI collect and QR payments”
-**AI:** *reads `SKILL.md` -> `pg/upi-payments.md`* -> Implements UPI collect, intent, or QR payment flows
+**AI:** *reads `SKILL.md` -> `payments/upi-payments.md`* -> Implements UPI collect, intent, or QR payment flows
 
 **You:** “Add mobile SDK integration”
-**AI:** *reads `pg/mobile-sdks/README.md`* -> Asks whether Android, iOS, or Flutter is needed before implementation
+**AI:** *reads `payments/mobile-sdks/README.md`* -> Asks whether Android, iOS, or Flutter is needed before implementation
 
 **You:** “Add Android mobile SDK integration”
-**AI:** *reads `pg/mobile-sdks/android.md`* -> Implements Android SDK install/init/callback/verification flow
+**AI:** *reads `payments/mobile-sdks/android.md`* -> Implements Android SDK install/init/callback/verification flow
 
 **You:** “Add web SDK integration”
-**AI:** *reads `pg/web-sdks/README.md`* -> Asks whether Android, iOS, Flutter, or React Native is needed
+**AI:** *reads `payments/web-sdks/README.md`* -> Asks whether Android, iOS, Flutter, or React Native is needed
 
 **You:** “Add Flutter web SDK integration”
-**AI:** *reads `pg/web-sdks/flutter.md`* -> Implements Flutter WebView SDK setup with backend verification
+**AI:** *reads `payments/web-sdks/flutter.md`* -> Implements Flutter WebView SDK setup with backend verification
 
 **You:** “Use P3P to charge for an API call”
 **AI:** *reads `p3p/README.md` -> `p3p/pay.md`* -> Verifies CLI/auth, creates a mandate, mints a PPT token, and executes a debit with sandbox-first safety
@@ -321,10 +321,10 @@ Integrate P3P x402 middleware into my Next.js app without exposing client secret
 **AI:** *reads `p3p/README.md` -> `p3p/sdk-integration.md`* -> Chooses the framework template, keeps secrets server-side, and wires the 402 challenge/retry flow
 
 **You:** “Enable NetBanking and wallet payments in checkout”
-**AI:** *reads `pg/netbanking.md` + `pg/wallet.md`* -> Adds bank and wallet payment initiation flows
+**AI:** *reads `payments/netbanking.md` + `payments/wallet.md`* -> Adds bank and wallet payment initiation flows
 
 **You:** “Create a payment link for ₹5000 and expire it in 7 days”
-**AI:** *reads `SKILL.md` -> `pg/payment-links.md`* -> Creates the payment link and sets expiry and lifecycle actions
+**AI:** *reads `SKILL.md` -> `payments/payment-links.md`* -> Creates the payment link and sets expiry and lifecycle actions
 
 **You:** “Issue a partial refund and explain idempotency”
 **AI:** *reads `SKILL.md` -> `settlements/refunds.md`* -> Creates a refund flow and explains merchant reference/idempotency usage
@@ -336,16 +336,16 @@ Integrate P3P x402 middleware into my Next.js app without exposing client secret
 **AI:** *reads `SKILL.md` -> `settlements/payouts.md`* -> Designs payout creation with production safeguards and confirmation steps
 
 **You:** “Create a customer and save their card for future payments”
-**AI:** *reads `pg/customers.md` -> `pg/tokenization.md`* -> Creates customer profile flow and tokenized saved-card flow
+**AI:** *reads `payments/customers.md` -> `payments/tokenization.md`* -> Creates customer profile flow and tokenized saved-card flow
 
 **You:** “Show me EMI and no-cost EMI options for this order”
-**AI:** *reads `pg/affordability-suite.md`* -> Uses affordability APIs for offer discovery and validation
+**AI:** *reads `payments/affordability-suite.md`* -> Uses affordability APIs for offer discovery and validation
 
 **You:** “Calculate convenience fee before showing the final payable amount”
-**AI:** *reads `pg/convenience-fee.md`* -> Adds convenience fee calculation into the checkout flow
+**AI:** *reads `payments/convenience-fee.md`* -> Adds convenience fee calculation into the checkout flow
 
 **You:** “Check if reward points payment is available”
-**AI:** *reads `pg/pay-by-points.md`* -> Checks points-based payment option flow
+**AI:** *reads `payments/pay-by-points.md`* -> Checks points-based payment option flow
 
 **You:** “Create and manage recurring billing plans”
 **AI:** *reads `subscriptions/subscriptions-plans.md`* -> Creates plan APIs and recurring billing setup
@@ -357,7 +357,7 @@ Integrate P3P x402 middleware into my Next.js app without exposing client secret
 **AI:** *reads `subscriptions/subscriptions-presentations.md`* -> Handles subscription presentation and retry flows
 
 **You:** “Set up webhook signature verification before fulfilling an order”
-**AI:** *reads `webhooks.md` -> `pg/orders.md` if order status is involved* -> Adds raw-body handling, signature verification, replay protection, status checks, and fulfillment gating
+**AI:** *reads `webhooks.md` -> `payments/orders.md` if order status is involved* -> Adds raw-body handling, signature verification, replay protection, status checks, and fulfillment gating
 
 **You:** “Review my Pine Labs integration for unsafe credential handling”
 **AI:** *reads `common-mistakes.md`* -> Flags plaintext secrets, production-risk patterns, missing webhook verification, and missing backend status checks
