@@ -9,6 +9,7 @@ export interface FrameworkConfig {
   readonly skillsBasePath: string;
   readonly manifestPath: string;
   readonly manifestFormat: ManifestFormat;
+  readonly likelyIndicatorPaths?: readonly string[];
 }
 
 export const FRAMEWORKS: readonly FrameworkConfig[] = [
@@ -29,9 +30,9 @@ export const FRAMEWORKS: readonly FrameworkConfig[] = [
     manifestFormat: "mdc",
   },
   {
-    value: "vscode-copilot",
-    label: "VS Code Copilot",
-    aliases: ["copilot", "github-copilot"],
+    value: "github-copilot",
+    label: "GitHub Copilot",
+    aliases: ["vscode-copilot", "copilot", "github-copilot-cli", "copilot-cli"],
     skillsBasePath: `.github/skills/${SKILLS_ROOT_DIR}`,
     manifestPath: ".github/copilot-instructions.md",
     manifestFormat: "markdown",
@@ -45,19 +46,20 @@ export const FRAMEWORKS: readonly FrameworkConfig[] = [
     manifestFormat: "markdown",
   },
   {
+    value: "kiro",
+    label: "Kiro",
+    aliases: ["kiro-ide", "kiro-cli"],
+    skillsBasePath: `.kiro/skills/${SKILLS_ROOT_DIR}`,
+    manifestPath: ".kiro/steering/pinelabs-agent-skills.md",
+    manifestFormat: "markdown",
+    likelyIndicatorPaths: [".kiro", ".kiro/steering", ".kiro/skills"],
+  },
+  {
     value: "opencode",
     label: "OpenCode",
     aliases: [],
     skillsBasePath: `.opencode/skills/${SKILLS_ROOT_DIR}`,
     manifestPath: "AGENTS.md",
-    manifestFormat: "markdown",
-  },
-  {
-    value: "github-copilot-cli",
-    label: "GitHub Copilot CLI",
-    aliases: ["copilot-cli"],
-    skillsBasePath: `.github/skills/${SKILLS_ROOT_DIR}`,
-    manifestPath: ".github/copilot-instructions.md",
     manifestFormat: "markdown",
   },
   {

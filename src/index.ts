@@ -9,6 +9,7 @@ import { FRAMEWORKS, parseFrameworkList, type FrameworkConfig } from "./config.j
 import {
   detectInstalledFrameworks,
   detectLikelyFrameworks,
+  inspectInstalledFrameworks,
   installSkillsForFramework,
   type InstallOperation,
 } from "./install.js";
@@ -76,7 +77,13 @@ async function frameworksForAdd(options: CommonOptions): Promise<FrameworkConfig
 
   if (options.yes) {
     const likely = await detectLikelyFrameworks(projectPath);
-    return likely.length > 0 ? likely : parseFrameworkList("vscode-copilot");
+    if (likely.length === 1) return likely;
+    if (likely.length === 0) {
+      throw new Error("No assistant framework was detected. Pass --frameworks with an explicit framework ID.");
+    }
+    throw new Error(
+      `Multiple assistant frameworks were detected (${likely.map((framework) => framework.value).join(", ")}). Pass --frameworks with the intended framework ID.`,
+    );
   }
 
   return promptForFrameworks(projectPath);
@@ -140,14 +147,17 @@ program
   .option("--path <path>", "Project path to inspect. Defaults to the current directory.")
   .action(async (options: CommonOptions) => {
     const projectPath = projectPathFromOptions(options);
-    const installed = await detectInstalledFrameworks(projectPath);
+    const installed = await inspectInstalledFrameworks(projectPath);
     if (installed.length === 0) {
       process.stdout.write("No Pine Labs agent skills installation found.\n");
       return;
     }
     process.stdout.write("Installed Pine Labs agent skills:\n");
-    for (const framework of installed) {
-      process.stdout.write(`  ${framework.value}\t${framework.skillsBasePath}\n`);
+    for (const install of installed) {
+      const installedVersion = install.installedVersion ?? "legacy";
+      process.stdout.write(
+        `  ${install.framework.value}\t${install.status}\tinstalled=${installedVersion}\tcurrent=${install.currentVersion}\t${install.skillsBasePath}\n`,
+      );
     }
   });
 

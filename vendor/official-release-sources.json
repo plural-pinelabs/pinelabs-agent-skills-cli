@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "component": "Pine Labs Online API and SDK changelog",
+      "source": "https://www.pinelabs.com/docs/online-payments/changelog",
+      "lastVerified": "2026-08-19"
+    },
+    {
+      "component": "Android Native SDK",
+      "version": "1.10.0",
+      "source": "https://www.pinelabs.com/docs/online-payments/sdks/mobile-sdks/android",
+      "lastVerified": "2026-08-19"
+    },
+    {
+      "component": "Flutter Native SDK",
+      "version": "1.0.0",
+      "source": "https://www.pinelabs.com/docs/online-payments/sdks/mobile-sdks/flutter",
+      "lastVerified": "2026-08-19"
+    },
+    {
+      "component": "iOS Native SDK",
+      "version": "1.1.1",
+      "source": "https://www.pinelabs.com/docs/online-payments/sdks/mobile-sdks/ios",
+      "lastVerified": "2026-08-19"
+    },
+    {
+      "component": "Flutter Web SDK",
+      "version": "1.0.0",
+      "source": "https://www.pinelabs.com/docs/online-payments/sdks/web-sdks/flutter",
+      "lastVerified": "2026-08-19"
+    }
+  ]
+}

@@ -1,7 +1,26 @@
 {
   "name": "pinelabs-agent-skills-cli",
-  "version": "0.1.0",
-  "description": "CLI tool to install Pine Labs Online agent skills into AI coding assistant projects.",
+  "version": "0.5.0",
+  "description": "Install Pine Labs Online agent skills, payment workflow guidance, and integration safeguards into AI coding assistant projects.",
+  "keywords": [
+    "pinelabs",
+    "pine-labs",
+    "agent-skills",
+    "ai-agents",
+    "payments",
+    "payment-gateway",
+    "checkout",
+    "webhooks",
+    "go-live",
+    "migration",
+    "p3p",
+    "x402",
+    "kiro",
+    "cursor",
+    "claude-code",
+    "github-copilot",
+    "codex"
+  ],
   "license": "MIT",
   "author": "Pine Labs",
   "homepage": "https://github.com/plural-pinelabs/pinelabs-agent-skills-cli",
@@ -31,6 +50,7 @@
     "package.json"
   ],
   "scripts": {
+    "generate": "node ../../scripts/generate-agent-skills-cli.mjs",
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && node --test test/*.test.mjs",
     "prepack": "tsc -p tsconfig.json"

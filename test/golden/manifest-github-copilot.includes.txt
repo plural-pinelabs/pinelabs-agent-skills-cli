@@ -1,0 +1,25 @@
+# Pine Labs Agent Skills
+.github/skills/pinelabs-skills/SKILL.md
+.github/skills/pinelabs-skills/validation-and-testing.md
+.github/skills/pinelabs-skills/go-live.md
+.github/skills/pinelabs-skills/webhooks.md
+.github/skills/pinelabs-skills/common-mistakes.md
+.github/skills/pinelabs-skills/upgrade-advisor.md
+.github/skills/pinelabs-skills/migration-guides/README.md
+.github/skills/pinelabs-skills/validation-and-testing/checkout-orders.md
+.github/skills/pinelabs-skills/validation-and-testing/refunds.md
+.github/skills/pinelabs-skills/validation-and-testing/webhooks.md
+.github/skills/pinelabs-skills/validation-and-testing/mobile-web-sdks.md
+.github/skills/pinelabs-skills/validation-and-testing/subscriptions.md
+.github/skills/pinelabs-skills/validation-and-testing/settlements.md
+.github/skills/pinelabs-skills/upgrade-advisor/installer.md
+.github/skills/pinelabs-skills/upgrade-advisor/integration.md
+.github/skills/pinelabs-skills/getting-started/README.md
+.github/skills/pinelabs-skills/pg/README.md
+.github/skills/pinelabs-skills/p3p/README.md
+.github/skills/pinelabs-skills/getting-started/dashboard-signup-and-token.md
+.github/skills/pinelabs-skills/pg/mobile-sdks/README.md
+.github/skills/pinelabs-skills/pg/web-sdks/README.md
+.github/skills/pinelabs-skills/p3p/pay.md
+.github/skills/pinelabs-skills/p3p/sdk-integration.md
+.github/skills/pinelabs-skills/p3p/references/REFERENCE.md

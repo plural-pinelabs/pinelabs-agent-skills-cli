@@ -1,0 +1,9 @@
+name: pinelabs_agent_skills_flutter_example
+description: Compile fixture for the official Pine Labs Flutter Web SDK contract.
+publish_to: none
+environment:
+  sdk: ">=3.9.2 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  pine_payment_sdk: ^1.0.0
