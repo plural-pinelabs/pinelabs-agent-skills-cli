@@ -23,6 +23,8 @@
   "files": [
     "README.md",
     "p3p-pay/**",
+    "p3p-pay-upi/**",
+    "p3p-pay-card/**",
     "p3p-sdk-integration/**"
   ],
   "publishConfig": {

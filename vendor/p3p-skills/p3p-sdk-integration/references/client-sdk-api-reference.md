@@ -40,7 +40,7 @@ const client = PineLabsOnlineClient.create({
 | `requestTimeoutMs` | `number` | No | Timeout for internal P3P calls (not the protected resource request) |
 | `maxRetries` | `number` | No | Max retries on P3P API errors |
 | `initialRetryDelayMs` | `number` | No | Initial backoff for retries |
-| `grantex` | `GrantexConfig` | No | Delegated agent authorization config (see Grantex section) |
+| `grantex` | `GrantexConfig` | Yes for txn | Delegated agent authorization config (consent page + daily/per-txn limits — see Grantex section) |
 
 #### Environment Defaults
 
@@ -76,7 +76,7 @@ Returns a standard `Response`. If payment succeeded, the response has a `Payment
 | `mobileNumber` | `string` | Yes* | Customer UPI-registered mobile (10 digits) |
 | `customerReference` | `string` | Yes* | Your internal customer ID |
 | `paymentMethod` | `PaymentMethod` | Yes | Payment method for this request |
-| `grantexToken` | `string` | No | Per-request Grantex grant token (overrides config default) |
+| `grantexToken` | `string` | Yes for txn | Per-request Grantex grant token from `exchangeGrantexCode` (overrides config default) |
 
 *At least one of `mobileNumber` or `customerReference` is required.
 
@@ -183,14 +183,16 @@ const receipt = decodeReceipt(paymentReceiptHeaderValue);
 
 ---
 
-## Grantex (Delegated Agent Authorization)
+## Grantex (Delegated Agent Authorization — Required for P3P Txn Flows)
 
-Grantex is optional. Use it when you want users to explicitly authorize bounded agent spending before paid calls begin.
+Grantex is the **required** delegated-authorization layer for P3P txn flows. It surfaces the consent page the user must approve before any paid call, and enforces the daily spend limit and per-txn limit the user sets during consent. Without a valid `X-Grantex-Token`, `decidePayment` returns `402` and the paid resource is withheld.
 
 ### Prerequisites — What You Need from grantex.dev
 
 1. Sign up at https://grantex.dev
-2. Create an **Agent**, add scopes: `mpp:payment:initiate`, optionally `mpp:payment:max_txn_paise:*`
+2. Create an **Agent**, add scopes:
+   - `mpp:payment:initiate` (required)
+   - `mpp:payment:max_txn_paise:*` (required for per-txn limit enforcement)
 3. Copy the **Agent ID** (`ag_...`) → `GRANTEX_AGENT_ID` env var
 4. Copy the **API Key** → `GRANTEX_API_KEY` env var (only visible once after creation)
 
@@ -265,7 +267,7 @@ response = client.get(
         customerReference="customer-ref-123",
         mobileNumber="9876543210",
         paymentMethod=PaymentMethod.RESERVE_PAY,
-        grantexToken=user_grant_token,   # optional
+        grantexToken=user_grant_token,   # required — Grantex consent + limits enforcement
     ),
 )
 data = response.json()

@@ -237,13 +237,12 @@ Content outside the managed block is preserved. Re-running `add skills` or `upda
 
 The installer also bundles Pine Labs P3P skills from the curated `p3p-skills` source snapshot:
 
-- `p3p/pay.md` guides CLI-driven UPI ReservePay flows for agent payments: mandate creation, PPT token creation, debit execution, webhook listening, and sandbox checks.
+- `p3p/pay.md` guides UPI ReservePay flows for agent payments: mandate creation (p3p-server-sdk), the client SDK 402 challenge/retry that mints a one-shot PPT, debit capture (decidePayment), mandate balance, and sandbox checks.
 - `p3p/sdk-integration.md` guides application integration for x402 payment middleware using the P3P server/client SDKs, framework templates, and sandbox test data.
 
-These are guidance assets only. The installer does not install runtime packages. Install the needed P3P runtime dependency in the target project when the assistant asks for it:
+These are guidance assets only. The installer does not install runtime packages. Install the P3P runtime SDKs in the target project when the assistant asks for them:
 
 ```bash
-npm install -g @pine-labs-online/p3p-cli
 npm install p3p-server-sdk p3p-client-sdk
 pip install pinelabs-online-p3p-server-sdk pinelabs-online-p3p-client-sdk
 ```

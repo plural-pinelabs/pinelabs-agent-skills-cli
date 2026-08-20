@@ -1,37 +1,60 @@
-# P3P CLI — Debit Execution and Receipt
+# P3P Debit Execution and Receipt (Server SDK)
 
 ## What is a Debit?
 
 A debit executes a UPI ReservePay charge against a mandate using a valid PPT token. It withdraws the specified amount from the funds that were pre-authorized (blocked) in the mandate.
 
-## Executing a Debit
+## Capturing a Debit
 
-```bash
-p3p debit execute \
-  --token <ppt_token> \
-  --challenge-id <payment_method_id> \
-  --mobile-number 9876543210 \
-  --amount 10000 \
-  --json
+On the server route, use the framework-agnostic `decidePayment` / `decide_payment` helper. It handles the full server-side decision tree: 402 challenge when no credential is present, credential verification, debit capture, pending status, and receipt generation.
+
+```ts
+import { Amount, ChargeOptions, decidePayment, PaymentGateway, PaymentMethod, P3PEnvironment } from "p3p-server-sdk";
+
+const decision = await decidePayment({
+  credentialHeader: request.headers.get("P3P-Credential") ?? undefined,
+  grantexTokenHeader: request.headers.get("X-Grantex-Token") ?? undefined,
+  config: {
+    clientId: process.env.PINELABS_CLIENT_ID!,
+    clientSecret: process.env.PINELABS_CLIENT_SECRET!,
+    paymentGateway: PaymentGateway.PineLabsOnline,
+    availablePaymentMethods: [PaymentMethod.RESERVE_PAY, PaymentMethod.OTM],
+    env: P3PEnvironment.SANDBOX,
+  },
+  chargeOptions: new ChargeOptions(new Amount(10000, "INR"), "/api/premium"),
+});
 ```
 
-### Flags
+```python
+from pinelabs_p3p_server import (
+    Amount, ChargeOptions, PaymentGateway, PaymentMethod,
+    P3PEnvironment, decide_payment,
+)
 
-| Flag | Required | Description |
+decision = await decide_payment(
+    credential_header=request.headers.get("P3P-Credential"),
+    grantex_token_header=request.headers.get("X-Grantex-Token"),
+    config=config,
+    charge_options=ChargeOptions(Amount(10000, "INR"), "/api/premium"),
+)
+```
+
+### ChargeOptions
+
+| Field | Required | Description |
 |------|----------|-------------|
-| `--token <value>` | Yes | The PPT token string (`ppt_live_...` or `ppt_test_...`) |
-| `--challenge-id <id>` | Yes | The `payment_method_id` from the mandate |
-| `--amount <paise>` | Yes | Actual debit amount in paise. Must be ≤ token `max_amount` |
-| `--payment-method <method>` | No | `RESERVE_PAY`, `OTM`, or `Crypto` (default: `RESERVE_PAY`) |
-| `--mobile-number <number>` | No | Customer mobile number |
-| `--customer-reference <ref>` | No | Your internal customer reference |
-| `--currency <code>` | No | Currency code, default `INR` |
-| `--description <text>` | No | Payment description |
-| `--metadata <json>` | No | JSON metadata string |
-| `--idempotency-key <key>` | No | UUID v4 — prevents duplicate debits on retry. Recommended. |
-| `--json` | No | Output raw JSON |
+| amount (`Amount`) | Yes | Actual debit amount in paise via `Amount(value, "INR")`. Must be ≤ token `max_amount`. |
+| resource path | Yes | The route being paid for (used in challenge signing) |
 
-## Example Output (pretty)
+### Decision actions
+
+| `decision.action` | Status | Meaning |
+|---|---|---|
+| `proceed` | 200 | Credential verified and debit captured — return the resource with `Payment-Receipt` from `decision.headers` |
+| `challenge` | 402 | No `P3P-Credential` present — return `decision.headers` (`WWW-Authenticate`) so the client SDK can retry with a token |
+| `pending` | 202 | Debit accepted, settlement in progress — store `decision.problemDetails.idempotencyKey` and poll |
+
+## Receipt
 
 ```
 Status:         SUCCESS
@@ -43,58 +66,38 @@ Receipt:        rcpt_live_eyJhbGciOiJIUzI1NiIs...
 Timestamp:      2026-04-05T11:00:00Z
 ```
 
-## Example Response (JSON)
+The receipt is returned in the `Payment-Receipt` response header (part of `decision.headers`). `decision.captureResult` includes `debit_id`, `status`, `amount`, and `idempotency_key`.
 
-```json
-{
-  "data": {
-    "debit_id": "dbt-v1-260405110000-ab-Kx9pQr",
-    "object": "debit",
-    "status": "SUCCESS",
-    "payment_method_id": "pm-v1-260405100000-ab-RBDgpR",
-    "amount": { "value": 10000, "currency": "INR" },
-    "payment_method": "RESERVE_PAY",
-    "receipt": "rcpt_live_eyJhbGciOiJIUzI1NiIs...",
-    "idempotency_key": "550e8400-e29b-41d4-a716-446655440000",
-    "created_at": "2026-04-05T11:00:00Z"
-  }
-}
-```
-
-**Key fields:**
-- `data.debit_id` — unique debit identifier for reconciliation and support
-- `data.status` — `SUCCESS`, `PENDING`, or `FAILED`
-- `data.receipt` — settlement receipt token; pass to the resource server as proof of payment
-- `data.amount.value` — confirmed debited amount in paise
+**Key fields (TypeScript):**
+- `decision.captureResult.debitId` / `debit_id` — unique debit identifier for reconciliation and support
+- `decision.captureResult.status` — `SUCCESS`, `PENDING`, or `FAILED`
+- `decision.captureResult.receipt` — settlement receipt token
+- `decision.captureResult.amount.value` — confirmed debited amount in paise
 
 ## Debit Status Values
 
 | Status | Meaning | Action |
 |---|---|---|
 | `SUCCESS` | Debit executed and confirmed | Proceed — transaction complete |
-| `PENDING` | Debit accepted, UPI settlement in progress | Poll `p3p debit status <debit_id>` |
+| `PENDING` | Debit accepted, UPI settlement in progress | Poll `getDebitStatus(idemKey)` |
 | `FAILED` | Debit rejected or failed | Check error code; retry if idempotent error |
 
 ## Idempotency
 
-Always pass `--idempotency-key <uuid>` for production debits. Using the same key on retry returns the same debit result without executing a second charge. Generate a UUID v4:
-
-```bash
-p3p debit \
-  --token ppt_live_... \
-  --challenge-id pm-v1-... \
-  --mobile-number 9876543210 \
-  --amount 10000 \
-  --idempotency-key "$(uuidgen | tr '[:upper:]' '[:lower:]')" \
-  --json
-```
+`decidePayment` generates an idempotency key automatically and exposes it when pending (`decision.problemDetails.idempotencyKey`). Reusing the same key on retry returns the same debit result without a second charge. Do not change the amount on retry.
 
 ## Pending Debits
 
-If status is `PENDING` (UPI settlement processing), the SDK retries automatically with the same idempotency key. In the CLI you can check status:
+When `decision.action === "pending"` (202), store the idempotency key and poll:
 
-```bash
-p3p debit status <debit_id> --json
+```ts
+const latest = await p3p.getDebitStatus("idem_key_123");
+if (latest.status === "SUCCESS") { /* mark order paid */ }
+if (latest.status === "FAILED")  { /* mark order failed, show diagnostics */ }
+```
+
+```python
+latest = await p3p.get_debit_status("idem_key_123")
 ```
 
 Once ReservePay debit is confirmed by NPCI, status transitions to `SUCCESS`.
@@ -103,7 +106,7 @@ Once ReservePay debit is confirmed by NPCI, status transitions to `SUCCESS`.
 
 | Error Code | Cause |
 |---|---|
-| `MPP_TOKEN_EXPIRED` | PPT token has passed its `expires_at` — create a new token |
+| `MPP_TOKEN_EXPIRED` | PPT token has passed its `expires_at` — the client SDK mints a fresh one on the next 402 |
 | `MPP_TOKEN_EXHAUSTED` | Token `max_amount` or `max_charges` already reached |
 | `MPP_AMOUNT_EXCEEDS_LIMIT` | Debit amount > token `usage_limits.max_amount` |
 | `MPP_MANDATE_INSUFFICIENT_FUNDS` | Mandate `amount_remaining` too low |
@@ -111,43 +114,12 @@ Once ReservePay debit is confirmed by NPCI, status transitions to `SUCCESS`.
 | `MPP_DEBIT_FAILED` | UPI ReservePay debit rejected by bank (insufficient balance, bank error) |
 | `MPP_INTERNAL_ERROR` | Server error — safe to retry with same idempotency key |
 
-## Pending Debit Status
+## Pending Debit Status Polling
 
-When a debit returns `PENDING` (202), poll its status using the idempotency key:
+Use `getDebitStatus` / `get_debit_status` with the idempotency key from the pending decision:
 
-```bash
-p3p debit status <idempotency_key> --json
+```ts
+const latest = await p3p.getDebitStatus("idem_key_123");
 ```
 
 Keep polling until `status` is `SUCCESS` or `FAILED`.
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `<idempotency_key>` | Yes | The idempotency key used in the original debit |
-| `--json` | No | Output raw JSON |
-
-## Sandbox Debit Simulation
-
-In SANDBOX, debit outcomes are determined by the **transaction amount**:
-
-| Amount | Result |
-|---|---|
-| < ₹2 (< 200 paise) | **Fail** — debit returns failure |
-| ₹2 – ₹4.99 (200–499 paise) | **Pending → Success** — debit returns pending; poll `p3p debit status <debit_id>` until SUCCESS |
-| ≥ ₹5 (≥ 500 paise) | **Success** — debit completes immediately |
-
-## Amount Rules
-
-- Debit `--amount` must be in **paise** (₹1 = 100 paise).
-- Debit amount must be ≤ token `usage_limits.max_amount`.
-- Debit amount must be ≤ mandate `amount_remaining`.
-- Multiple debits against the same mandate are allowed until `amount_remaining = 0`.
-
-## After Debit
-
-Present to the user:
-1. Debited amount (convert from paise: `value / 100` → rupees)
-2. `debit_id` for reference
-3. Confirmation that the transaction is complete
-
-The `receipt` token can optionally be sent to the resource server as proof of payment for x402-protected APIs.

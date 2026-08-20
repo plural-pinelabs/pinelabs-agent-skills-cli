@@ -1,42 +1,45 @@
 {
   "skill": "p3p-pay",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "cases": [
     {
       "id": "pay-001",
       "description": "Basic payment request",
       "input": "Pay ₹100 to the API service for my agent",
       "expectedBehavior": [
-        "Check if p3p CLI is installed",
-        "Check if credentials are configured",
-        "Create a mandate for 10000 paise",
-        "Show QR URL to user",
-        "Poll mandate status until AUTHORIZED",
-        "Create PPT token",
-        "Execute debit for 10000 paise",
+        "Check if PINELABS_CLIENT_ID and PINELABS_CLIENT_SECRET env vars are set",
+        "Verify p3p-server-sdk and p3p-client-sdk are installed in the target project",
+        "Create a mandate for 10000 paise via p3p.createMandate",
+        "Show the UPI deep link / QR to the user",
+        "Poll mandate status until ACTIVE",
+        "Call the protected route via the client SDK (auto mints PPT and retries on 402)",
+        "Capture the debit via decidePayment for 10000 paise",
         "Confirm transaction to user"
       ],
       "mustNotDo": [
         "Ask user for UPI PIN or bank credentials",
-        "Guess the merchant ID",
+        "Ask the user to provide client_id or client_secret directly in chat",
+        "Guess the mobile number or amount",
         "Skip mandate status polling",
-        "Proceed to token before mandate is AUTHORIZED"
+        "Call the paid route before the mandate is ACTIVE"
       ]
     },
     {
       "id": "pay-002",
-      "description": "CLI not found in PATH",
+      "description": "SDK not installed",
       "input": "Set up P3P and pay ₹50 for API credits",
       "expectedBehavior": [
-        "Run `which p3p` — fails",
-        "Search common install locations with find command",
-        "If not found: run `npm install -g @pine-labs-online/p3p-cli`",
-        "Verify install with `p3p --version`",
+        "Check package.json / node_modules for p3p-server-sdk and p3p-client-sdk",
+        "Detect project language (TypeScript or Python)",
+        "If TypeScript: run `npm install p3p-server-sdk p3p-client-sdk`",
+        "If Python: run `pip install pinelabs-online-p3p-server-sdk pinelabs-online-p3p-client-sdk`",
+        "Verify import succeeds before continuing",
         "Continue with mandate creation"
       ],
       "mustNotDo": [
-        "Immediately run npm install without searching first",
-        "Give up if which p3p fails"
+        "Attempt to npm install -g @pine-labs-online/p3p-cli",
+        "Attempt to invoke a `p3p` shell binary",
+        "Give up if the SDK is not yet installed"
       ]
     },
     {
@@ -44,13 +47,14 @@
       "description": "No credentials configured",
       "input": "Use P3P to pay for my order",
       "expectedBehavior": [
-        "Run `p3p config list` — shows empty or missing credentials",
-        "Check for PINE_LABS_CLIENT_ID env var",
-        "If neither set: run `p3p login --interactive`",
+        "Check for PINELABS_CLIENT_ID and PINELABS_CLIENT_SECRET env vars",
+        "If missing: instruct the user to set them server-side (never in chat)",
+        "Do not proceed until credentials are available in the environment",
         "Proceed after authentication"
       ],
       "mustNotDo": [
         "Ask the user to provide client_id or client_secret directly in chat",
+        "Print or log the secret value",
         "Skip authentication check"
       ]
     },
@@ -59,12 +63,13 @@
       "description": "Correct paise conversion",
       "input": "Pay ₹500 for the premium plan",
       "expectedBehavior": [
-        "Use 50000 as the --amount value (500 rupees × 100)",
+        "Pass Amount(50000, 'INR') to createMandate (500 rupees × 100 paise)",
         "Show user ₹500.00 in confirmation"
       ],
       "mustNotDo": [
         "Pass 500 as the amount (treating rupees as paise)",
-        "Pass 5000 as the amount"
+        "Pass 5000 as the amount",
+        "Pass Grantex budget in rupees instead of paise (e.g., passing 500 instead of 50000 for ₹500) — allocate in paise"
       ]
     },
     {
@@ -73,11 +78,11 @@
       "input": "What is Pine Labs P3P and how does it work?",
       "expectedBehavior": [
         "Read references/cli-setup.md for product FAQ",
-        "Answer from the reference without running CLI commands",
+        "Answer from the reference without running any commands",
         "Explain x402 protocol, UPI ReservePay, mandate/token lifecycle"
       ],
       "mustNotDo": [
-        "Run any p3p CLI commands",
+        "Run any p3p CLI commands or SDK calls",
         "Hallucinate product details not in the reference"
       ]
     },
@@ -86,14 +91,14 @@
       "description": "QR timeout / mandate not authorized",
       "input": "The QR expired before I could scan it",
       "expectedBehavior": [
-        "Acknowledge the QR has expired",
+        "Acknowledge the QR / deep link has expired",
         "Offer to create a new mandate",
-        "On confirmation: run p3p mandates create again",
-        "Show new QR URL to user"
+        "On confirmation: call p3p.createMandate again",
+        "Show the new UPI deep link / QR to the user"
       ],
       "mustNotDo": [
-        "Reuse the old payment_method_id for token creation",
-        "Proceed to token without AUTHORIZED mandate"
+        "Reuse the old authorizationId for the paid request",
+        "Proceed to the paid route without an ACTIVE mandate"
       ]
     },
     {
@@ -101,13 +106,13 @@
       "description": "Multi-charge scenario",
       "input": "I want to set up a token to pay for up to 5 API calls at ₹10 each",
       "expectedBehavior": [
-        "Create mandate for at least 5000 paise total (5 × 1000)",
-        "Create token with max_amount 5000 and awareness of multi-charge",
-        "Explain to user how multi-charge works"
+        "Create a mandate for at least 5000 paise total (5 × 1000)",
+        "Explain that the client SDK mints a fresh one-shot token per challenge, and the mandate remains active across charges",
+        "Explain to user how multi-charge works under the usage_limits cap"
       ],
       "mustNotDo": [
         "Create a new mandate for each individual API call",
-        "Create a token with max_amount below total needed"
+        "Attempt to share a single PPT across concurrent requests"
       ]
     },
     {
@@ -115,14 +120,14 @@
       "description": "Sandbox vs production",
       "input": "Test the payment flow in sandbox",
       "expectedBehavior": [
-        "Check PINE_LABS_ENV or p3p config env",
-        "Confirm SANDBOX environment is active",
+        "Check PINE_LABS_ENV and the SDK config env field",
+        "Confirm P3PEnvironment.SANDBOX is active",
         "Use test credentials",
-        "Inform user that ppt_test_ prefix indicates sandbox token"
+        "Inform user that ppt_test_ prefix indicates a sandbox token"
       ],
       "mustNotDo": [
         "Use production credentials for testing",
-        "Treat sandbox and production flows differently in terms of commands"
+        "Run a live debit in PRODUCTION without explicit confirmation of amount, mobile, merchant context, and operation"
       ]
     }
   ]

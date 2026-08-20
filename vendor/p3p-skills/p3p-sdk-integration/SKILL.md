@@ -213,18 +213,27 @@ return response
 
 Read [server-sdk-api-reference](references/server-sdk-api-reference.md) for the full API.
 
-### 4. Mandate Creation (Optional — Server Initiated)
+### 4. Mandate Creation (Server-Side) — Route the Activation Sub-Step
 
-If the server needs to create mandates directly:
+`createMandate` itself (the server call) is universal: same signature, just a different `paymentMethod`. **What differs is the activation sub-step the user/customer goes through after `createMandate` returns.** Route the activation to the method-specific skill so the right UI is shown (UPI QR vs card checkout URL) and the right identifier is gathered (`mobileNumber` for UPI, `customerReference` for card).
 
-**TypeScript:**
+**Routing rule (apply before you write the activation code):**
+
+| `paymentMethod` | Activation sub-skill | Activation UI |
+|---|---|---|
+| `PaymentMethod.RESERVE_PAY` or `PaymentMethod.OTM` | [`p3p/pay-upi.md`](pay-upi.md) | Show QR generated from `deep_link`; user scans with UPI app |
+| `PaymentMethod.CARD` | [`p3p/pay-card.md`](pay-card.md) | Show `checkout_url` in a modal/iframe; user enters card + OTP |
+
+**Server SDK call is the same shape for every method (only `paymentMethod` + the identifier change):**
+
+**TypeScript (UPI ReservePay example):**
 ```ts
 const mandate = await p3p.createMandate({
   customerReference: "customer-ref-123",
-  mobileNumber: "9876543210",
+  mobileNumber: "9876543210",                   // UPI-only
   amount: new Amount(50000, "INR"),
   validityInDays: 7,
-  paymentMethod: PaymentMethod.RESERVE_PAY,
+  paymentMethod: PaymentMethod.RESERVE_PAY,     // or PaymentMethod.OTM / PaymentMethod.CARD
 });
 ```
 
@@ -233,15 +242,19 @@ const mandate = await p3p.createMandate({
 from pinelabs_p3p_server import Amount, CreateMandateOptions, PaymentMethod
 
 mandate = p3p.create_mandate(CreateMandateOptions(
-    mobileNumber="9876543210",
+    mobileNumber="9876543210",                   # UPI-only; omit for CARD
     customerReference="customer-ref-123",
     amount=Amount(value=50000, currency="INR"),
-    paymentMethod=PaymentMethod.RESERVE_PAY,
+    paymentMethod=PaymentMethod.RESERVE_PAY,     # or PaymentMethod.OTM / PaymentMethod.CARD
     validityInDays=7,
 ))
 ```
 
-The response includes a `deep_link` field — a UPI intent URL the customer must approve in their UPI app. Read [server-sdk-api-reference](references/server-sdk-api-reference.md) for mandate creation details.
+**Reading the response (per method):**
+- UPI (`RESERVE_PAY` / `OTM`) → `mandate.deep_link` (UPI intent URL). Generate a QR and show it. → See [`p3p/pay-upi.md`](pay-upi.md) §4.
+- Card (`CARD`) → `mandate.checkout_url`. Open in a modal/iframe/redirect. → See [`p3p/pay-card.md`](pay-card.md) §4.
+
+After `createMandate`, **do not write activation UI code from this skill**. Read the routed sub-skill for the activation sequence (show QR / checkout URL, poll `getMandate(mandate.mandate_id)` until `order_status` is `AUTHORIZED`/`ACTIVE`) and then return here to wire the client SDK and `decidePayment`. Read [server-sdk-api-reference](references/server-sdk-api-reference.md) for the full `createMandate` contract.
 
 ## Client-Side Setup
 
@@ -305,7 +318,7 @@ const response = await client.get(
     customerReference: "customer-ref-123",       // your customer ID
     mobileNumber: "9876543210",                  // customer's UPI-registered mobile
     paymentMethod: PaymentMethod.RESERVE_PAY,    // payment method to use
-    grantexToken: userGrantToken,                // optional: Grantex delegated auth
+    grantexToken: user_grant_token,   # required — Grantex consent + limits enforcement
   },
 );
 const data = await response.json();
@@ -321,7 +334,7 @@ response = client.get(
         customerReference="customer-ref-123",
         mobileNumber="9876543210",
         paymentMethod=PaymentMethod.RESERVE_PAY,
-        grantexToken=user_grant_token,   # optional
+        grantexToken=user_grant_token,   # required
     ),
 )
 data = response.json()

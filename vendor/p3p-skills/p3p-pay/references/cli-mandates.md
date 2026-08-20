@@ -1,4 +1,4 @@
-# P3P CLI — Mandate States and QR Flow
+# P3P Mandate States and QR Flow (Server SDK)
 
 ## What is a Mandate?
 
@@ -8,77 +8,81 @@ The mandate is the **x402 challenge** step — the customer proves they can pay 
 
 ## Creating a Mandate
 
-```bash
-p3p mandates create \
-  --mobile-number 9876543210 \
-  --amount 50000 \
-  --description "Payment for API credits" \
-  --json
+Use `p3p-server-sdk` (TypeScript) or `pinelabs-online-p3p-server-sdk` (Python):
+
+```ts
+import { Amount, PaymentMethod, PineLabsOnlineP3P } from "p3p-server-sdk";
+
+const p3p = PineLabsOnlineP3P.create(config);
+
+const mandate = await p3p.createMandate({
+  customerReference: "customer-ref-123",
+  mobileNumber: "9876543210",
+  amount: new Amount(50000, "INR"),     // ₹500.00 in paise
+  paymentMethod: PaymentMethod.RESERVE_PAY,
+  // For cards use PaymentMethod.CARD; for UPI OTM use PaymentMethod.OTM
+});
 ```
 
-### Flags
+```python
+from pinelabs_p3p_server import (
+    Amount, PaymentMethod, PineLabsOnlineP3P,
+)
 
-| Flag | Required | Description |
+p3p = PineLabsOnlineP3P.create(config)
+
+mandate = await p3p.create_mandate(
+    customer_reference="customer-ref-123",
+    mobile_number="9876543210",
+    amount=Amount(50000, "INR"),
+    payment_method=PaymentMethod.RESERVE_PAY,
+)
+```
+
+### Options
+
+| Option | Required | Description |
 |------|----------|-------------|
-| `--mobile-number <number>` | Yes | Customer mobile number, 10 digits (no `+91`) |
-| `--amount <paise>` | Yes | Mandate amount in paise (₹1 = 100 paise) |
-| `--currency <code>` | No | Currency code, default `INR` |
-| `--payment-method <method>` | No | `RESERVE_PAY`, `OTM`, or `Crypto` (default: `RESERVE_PAY`) |
-| `--description <text>` | No | Human-readable mandate purpose |
-| `--validity-days <days>` | No | Mandate validity in days, default `7`, max `30` |
-| `--customer-reference <ref>` | No | Your internal customer reference |
-| `--metadata <json>` | No | JSON metadata string |
-| `--server-url <url>` | No | Use a local playground server proxy instead of direct SDK call |
-| `--poll` | No | Poll for mandate approval after creation (default: `true`) |
-| `--no-poll` | No | Disable auto-polling |
-| `--poll-interval <ms>` | No | Polling interval in milliseconds (default: 2000) |
-| `--poll-timeout <ms>` | No | Max polling duration in milliseconds (default: 120000 = 2 min) |
-| `--json` | No | Output raw JSON |
+| `mobileNumber` / `mobile_number` | Yes | Customer mobile number, 10 digits (no `+91`) |
+| `amount` (`Amount`) | Yes | Mandate amount in paise via `Amount(value, "INR")` (₹1 = 100 paise) |
+| `paymentMethod` / `payment_method` | No | `PaymentMethod.RESERVE_PAY` (default), `PaymentMethod.OTM`, or `PaymentMethod.CARD` |
+| `customerReference` / `customer_reference` | No | Your internal customer reference |
+| `metadata` | No | Object of arbitrary metadata |
 
-### Example Response (JSON)
+### Response shape
 
 ```json
 {
-  "data": {
-    "payment_method_id": "pm-v1-260405100000-ab-RBDgpR",
-    "object": "mandate",
-    "order_status": "CREATED",
-    "payment_status": "PAYMENT_PENDING",
-    "amount": { "value": 50000, "currency": "INR" },
-    "amount_blocked": 0,
-    "amount_debited": 0,
-    "amount_remaining": 50000,
-    "challenge": {
-      "type": "upi_qr",
-      "qr_url": "https://api.plural.in/qr/pm-v1-260405100000-ab-RBDgpR",
-      "deep_link": "upi://pay?pa=plural@upi&pn=Pine+Labs+Online&am=500&cu=INR",
-      "expires_at": "2026-04-05T10:30:00Z"
-    },
-    "mobile_number": "+919876543210",
-    "expires_at": "2026-04-12T00:00:00Z",
-    "created_at": "2026-04-05T10:00:00Z"
-  }
+  "authorizationId": "pm-v1-260405100000-ab-RBDgpR",
+  "object": "mandate",
+  "order_status": "CREATED",
+  "payment_status": "PAYMENT_PENDING",
+  "amount": { "value": 50000, "currency": "INR" },
+  "amount_blocked": 0,
+  "amount_debited": 0,
+  "amount_remaining": 50000,
+  "deep_link": "upi://pay?pa=plural@upi&pn=Pine+Labs+Online&am=500&cu=INR",
+  "checkout_url": "https://api.pluralpay.in/checkout/pm-v1-...",
+  "mobile_number": "+919876543210",
+  "expires_at": "2026-04-12T00:00:00Z",
+  "created_at": "2026-04-05T10:00:00Z"
 }
 ```
 
 **Key fields to extract:**
-- `data.payment_method_id` — use this as `--challenge-id` in all subsequent token and debit commands
-- `data.challenge.qr_url` — show to user for scanning
-- `data.challenge.deep_link` — use for mobile UPI app deep links
-- `data.challenge.expires_at` — QR code validity (typically 30 minutes)
-- `data.expires_at` — mandate validity window
+- `authorizationId` / `payment_method_id` — used to poll status and fetch balance
+- `deep_link` — UPI intent URL; encode into a QR for the customer to scan (`upi://pay?...`)
+- `checkout_url` — present for card mandates; show in a modal/iframe
+- `expires_at` — mandate validity window
 
 ## Polling Mandate Status
 
-By default, `p3p mandates create` **auto-polls** for mandate approval after creation (up to 2 minutes). You do not need a separate poll loop unless you passed `--no-poll`.
+Poll until `order_status` is `ACTIVE` (also reported as `AUTHORIZED` / `APPROVED` / `SUCCESS`):
 
-To poll manually:
-
-```bash
-p3p mandates get <payment_method_id> --json
+```ts
+const status = await p3p.getMandate(mandate.mandate_id);
+// repeat until status.order_status === "AUTHORIZED" (a.k.a. ACTIVE)
 ```
-
-Poll until `order_status === "AUTHORIZED"`. The default auto-poll checks every 2 seconds for up to 2 minutes.
 
 > **Sandbox note:** In SANDBOX, the mandate QR URL is auto-approved — no real UPI scan is needed. The mandate transitions to `AUTHORIZED` automatically after creation. Polling still works but will resolve almost immediately.
 

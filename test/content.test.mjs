@@ -227,7 +227,7 @@ test("generated skill catalog is populated", () => {
   const areaSkillPathSet = new Set(AREA_SKILL_PATHS);
   const areaSkills = SKILL_ASSETS.filter((asset) => areaSkillPathSet.has(asset.path));
   assert.equal(areaSkills.length, AREA_SKILL_PATHS.length);
-  assert.equal(AREA_SKILL_PATHS.length, 39);
+  assert.equal(AREA_SKILL_PATHS.length, 41);
   assert.equal(WORKFLOW_SKILL_PATHS.length, workflowSkillPaths.length);
   for (const path of workflowSkillPaths) {
     assert.ok(paths.has(path), `${path} missing from generated assets`);

@@ -1,0 +1,98 @@
+{
+  "skill": "p3p-pay-card",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "card-001",
+      "description": "Basic card mandate + debit",
+      "input": "Pay ₹100 to the API service using a card mandate",
+      "expectedBehavior": [
+        "Verify PINELABS_CLIENT_ID and PINELABS_CLIENT_SECRET env vars are set",
+        "Verify p3p-server-sdk and p3p-client-sdk are installed",
+        "Create a mandate with paymentMethod PaymentMethod.CARD and Amount(10000, 'INR')",
+        "Show the checkout_url (modal/iframe/redirect) for card details + OTP",
+        "Poll getMandate(mandate.mandate_id) until order_status is AUTHORIZED/ACTIVE",
+        "Call the protected route via the client SDK (auto mints PPT and retries on 402)",
+        "Capture the debit via decidePayment for 10000 paise",
+        "Confirm transaction to user"
+      ],
+      "mustNotDo": [
+        "Ask the user to type card number, CVV, or OTP in chat",
+        "Ask the user for client_id or client_secret directly in chat",
+        "Pass PaymentMethod.RESERVE_PAY or PaymentMethod.OTM",
+        "Call the paid route before the mandate is ACTIVE",
+        "Generate a QR / deep_link (this is a card flow, not UPI)"
+      ]
+    },
+    {
+      "id": "card-002",
+      "description": "OTM/ReservePay rejected",
+      "input": "Set up a ReservePay mandate for ₹500",
+      "expectedBehavior": [
+        "Recognize this is a UPI request, not a card request",
+        "Route the user to p3p-pay-upi (PaymentMethod.RESERVE_PAY)",
+        "Do not proceed with a card mandate"
+      ],
+      "mustNotDo": [
+        "Create a card mandate for a ReservePay / OTM request",
+        "Pass PaymentMethod.CARD for a UPI request"
+      ]
+    },
+    {
+      "id": "card-003",
+      "description": "Checkout URL expired",
+      "input": "The checkout link expired before I entered my card",
+      "expectedBehavior": [
+        "Acknowledge the checkout_url has expired",
+        "Offer to create a new card mandate with the same amount and customerReference",
+        "On confirmation: call p3p.createMandate again",
+        "Show the new checkout_url"
+      ],
+      "mustNotDo": [
+        "Reuse the old authorizationId for the paid request",
+        "Proceed to the paid route without an ACTIVE mandate"
+      ]
+    },
+    {
+      "id": "card-004",
+      "description": "Mandate balance lookup is unsupported for CARD",
+      "input": "How much is left in my card mandate?",
+      "expectedBehavior": [
+        "Explain that getMandateBalance is not supported for PaymentMethod.CARD (only RESERVE_PAY is)",
+        "Advise polling getMandate(mandate.mandate_id) for order_status until AUTHORIZED/ACTIVE and relying on the debit receipt for spend accounting"
+      ],
+      "mustNotDo": [
+        "Call getMandateBalance with PaymentMethod.CARD",
+        "Claim card mandate balance is available via the SDK"
+      ]
+    },
+    {
+      "id": "card-005",
+      "description": "Multi-charge scenario",
+      "input": "I want to set up a card mandate allowing up to 10 API calls at ₹20 each",
+      "expectedBehavior": [
+        "Create a CARD mandate for at least 20000 paise total (10 × 2000)",
+        "Explain that the client SDK mints a fresh one-shot token per challenge and the mandate stays active",
+        "Explain the usage_limits cap"
+      ],
+      "mustNotDo": [
+        "Create a new mandate for each individual API call"
+      ]
+    },
+    {
+      "id": "card-006",
+      "description": "Sandbox test card usage",
+      "input": "Test the card mandate flow in sandbox",
+      "expectedBehavior": [
+        "Check PINE_LABS_ENV and the SDK config env",
+        "Confirm P3PEnvironment.SANDBOX is active",
+        "Direct user to the sandbox test card bin and OTP from the cli-mandates reference",
+        "Inform user that ppt_test_ prefix indicates a sandbox token"
+      ],
+      "mustNotDo": [
+        "Use production credentials for testing",
+        "Run a live debit in PRODUCTION without explicit confirmation of amount, customer reference, merchant context, and operation"
+      ]
+    }
+  ]
+}

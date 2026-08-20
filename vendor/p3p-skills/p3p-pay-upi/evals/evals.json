@@ -1,0 +1,101 @@
+{
+  "skill": "p3p-pay-upi",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "upi-001",
+      "description": "Basic ReservePay payment",
+      "input": "Pay ₹100 to the API service using UPI ReservePay",
+      "expectedBehavior": [
+        "Verify PINELABS_CLIENT_ID and PINELABS_CLIENT_SECRET env vars are set",
+        "Verify p3p-server-sdk and p3p-client-sdk are installed",
+        "Create a mandate with paymentMethod RESERVE_PAY and Amount(10000, 'INR')",
+        "Generate a QR from deep_link and show it to the user",
+        "Poll getMandate(mandate.mandate_id) until order_status is AUTHORIZED/ACTIVE",
+        "Call the protected route via the client SDK (auto mints PPT and retries on 402)",
+        "Capture the debit via decidePayment for 10000 paise",
+        "Confirm transaction to user"
+      ],
+      "mustNotDo": [
+        "Ask the user for UPI PIN or bank credentials",
+        "Ask the user to provide client_id or client_secret directly in chat",
+        "Pass PaymentMethod.CARD or PaymentMethod.OTM",
+        "Call the paid route before the mandate is ACTIVE"
+      ]
+    },
+    {
+      "id": "upi-002",
+      "description": "OTM single-use debit",
+      "input": "Pay a one-time ₹50 charge via UPI OTM",
+      "expectedBehavior": [
+        "Create the mandate with paymentMethod PaymentMethod.OTM",
+        "Show the UPI deep_link / QR for activation",
+        "Poll until ACTIVE",
+        "Execute a single debit",
+        "Do not advertise multi-charge for OTM"
+      ],
+      "mustNotDo": [
+        "Call getMandateBalance for OTM (only RESERVE_PAY is supported)",
+        "Attempt a second debit against the same OTM mandate",
+        "Treat OTM as RESERVE_PAY"
+      ]
+    },
+    {
+      "id": "upi-003",
+      "description": "Mandate balance lookup for ReservePay",
+      "input": "How much is left in my ReservePay mandate?",
+      "expectedBehavior": [
+        "Call getMandateBalance with authorizationId, phoneNumber (10 digits), and PaymentMethod.RESERVE_PAY",
+        "Report amount_remaining to the user in rupees, not paise"
+      ],
+      "mustNotDo": [
+        "Call getMandateBalance for an OTM mandate",
+        "Omit the phoneNumber or authorizationId"
+      ]
+    },
+    {
+      "id": "upi-004",
+      "description": "QR timeout",
+      "input": "The UPI QR expired before I could scan it",
+      "expectedBehavior": [
+        "Acknowledge the deep_link / QR has expired",
+        "Offer to create a new mandate with the same RESERVE_PAY or OTM method",
+        "On confirmation: call p3p.createMandate again",
+        "Show the new UPI deep_link / QR"
+      ],
+      "mustNotDo": [
+        "Reuse the old authorizationId for the paid request",
+        "Proceed to the paid route without an ACTIVE mandate"
+      ]
+    },
+    {
+      "id": "upi-005",
+      "description": "Multi-charge scenario (ReservePay only)",
+      "input": "I want to set up ReservePay to pay for up to 5 API calls at ₹10 each",
+      "expectedBehavior": [
+        "Create a RESERVE_PAY mandate for at least 5000 paise total (5 × 1000)",
+        "Explain that the client SDK mints a fresh one-shot token per challenge and the mandate stays active",
+        "Explain the usage_limits cap"
+      ],
+      "mustNotDo": [
+        "Create a new mandate for each individual API call",
+        "Suggest multi-charge via OTM"
+      ]
+    },
+    {
+      "id": "upi-006",
+      "description": "Sandbox vs production",
+      "input": "Test the UPI ReservePay flow in sandbox",
+      "expectedBehavior": [
+        "Check PINE_LABS_ENV and the SDK config env",
+        "Confirm P3PEnvironment.SANDBOX is active",
+        "Inform user the mandate is auto-approved in sandbox",
+        "Inform user that ppt_test_ prefix indicates a sandbox token"
+      ],
+      "mustNotDo": [
+        "Use production credentials for testing",
+        "Run a live debit in PRODUCTION without explicit confirmation of amount, mobile, merchant context, and operation"
+      ]
+    }
+  ]
+}

@@ -112,7 +112,7 @@ const balanceSummary = {
 };
 ```
 
-**Note:** Currently supports `PaymentMethod.RESERVE_PAY` only. Passing `PaymentMethod.OTM` fails before a Pine Labs network call.
+**Note:** Currently supports `PaymentMethod.RESERVE_PAY` only. Skip this call for `PaymentMethod.OTM` and `PaymentMethod.CARD` — per the [P3P SDK docs](https://www.pinelabs.com/docs/online-payments/ai/p3p/sdks), "While integrating with `PaymentMethod.OTM` and `PaymentMethod.CARD`, skip the Fetch Mandate Balance step." For card mandates, poll `getMandate(mandate.mandate_id)` until `order_status` is `AUTHORIZED`/`ACTIVE` and rely on the debit receipt from `decidePayment` for spend accounting.
 
 ---
 
@@ -229,16 +229,22 @@ If `POST /mpp/v1/debit` returns `202`, the SDK treats the debit as pending and r
 
 ---
 
-## Grantex — Delegated Agent Authorization
+## Grantex — Delegated Agent Authorization (Required for P3P Txn Flows)
 
-Grantex is an **optional** layer. Skip this section if you are not using delegated authorization.
+Grantex is the **required** delegated-authorization layer for P3P transactions. It provides:
+- A **consent page** that the user must approve before any paid call begins
+- **Daily spend limit** configured by the user during consent
+- **Per-txn limit** configured by the user during consent
+- Enforcement on every `decidePayment` call via the `X-Grantex-Token` header
+
+`decidePayment` returns `402` and withholds the paid resource when no valid `X-Grantex-Token` is present. Skipping Grantex (`grantex.enforceGrant: false`) is not the default path and not the supported flow.
 
 ### Step 1 — Create a Grantex Account and Get Credentials
 
 1. Sign up at https://grantex.dev (or https://grantex.dev/dashboard/signup)
 2. Create an **Agent** — give it a name and add these scopes:
-   - `mpp:payment:initiate`
-   - `mpp:payment:max_txn_paise:*` (if you want spend-limit enforcement)
+   - `mpp:payment:initiate` (required)
+   - `mpp:payment:max_txn_paise:*` (required for per-txn limit enforcement)
 3. After creating the agent, copy:
    - **API Key** → set as `GRANTEX_API_KEY` env var (save it — you won't see it again)
    - **Agent ID** → set as `GRANTEX_AGENT_ID` env var (format: `ag_...`)
@@ -246,6 +252,7 @@ Grantex is an **optional** layer. Skip this section if you are not using delegat
 ```bash
 export GRANTEX_API_KEY=your_grantex_api_key
 export GRANTEX_AGENT_ID=ag_xxxxxxxxxxxxxxxx
+export GRANTEX_REDIRECT_URI=https://yourapp.com/grantex/callback   # MUST be https://
 ```
 
 ### Step 2 — Configure the Server SDK with Grantex
@@ -270,7 +277,7 @@ const p3p = PineLabsOnlineP3P.create({
     agentId: process.env.GRANTEX_AGENT_ID!.startsWith("did:")
       ? process.env.GRANTEX_AGENT_ID!
       : `did:grantex:${process.env.GRANTEX_AGENT_ID!}`,
-    requiredScopes: ["mpp:payment:initiate"],
+    requiredScopes: ["mpp:payment:initiate", "mpp:payment:max_txn_paise:50000"],
     hosted: {
       apiKey: process.env.GRANTEX_API_KEY!,   // your Grantex API key
       // baseUrl defaults to https://api.grantex.dev
@@ -291,12 +298,12 @@ config = PineLabsOnlineServerConfig(
     clientId=os.environ["PINELABS_CLIENT_ID"],
     clientSecret=os.environ["PINELABS_CLIENT_SECRET"],
     paymentGateway=PaymentGateway.PineLabsOnline,
-    availablePaymentMethods=[PaymentMethod.RESERVE_PAY],
+    availablePaymentMethods=[PaymentMethod.RESERVE_PAY, PaymentMethod.OTM],
     env=P3PEnvironment.SANDBOX,
     grantex=ServerGrantexConfig(
         enforceGrant=True,
         agentId=grantex_agent_did,
-        requiredScopes=["mpp:payment:initiate"],
+        requiredScopes=["mpp:payment:initiate", "mpp:payment:max_txn_paise:50000"],
         hosted=HostedGrantexConfig(
             apiKey=os.environ["GRANTEX_API_KEY"],   # your Grantex API key
         ),
@@ -308,37 +315,52 @@ config = PineLabsOnlineServerConfig(
 
 Before a user's agent can make paid calls, the user must authorize it via Grantex. This is a one-time OAuth-style consent flow your backend drives.
 
+The flow has **two separate HTTP handlers** — step 1 starts the consent (frontend button → your `/grantex/start` endpoint), then the user leaves your app to Grantex's hosted consent page and returns via browser redirect to your `/grantex/callback` (step 2). You cannot perform both in the same request because the user must approve in a browser at `auth.consentUrl`.
+
+> **redirectUri must be HTTPS** (Grantex rejects `http://`). In local dev, use a tunnel such as `ngrok http 3000` or `cloudflared tunnel --url http://localhost:3000` and pass the resulting `https://<tunnel>.ngrok.app/grantex/callback` as `redirectUri`. In production, use your real `https://yourapp.com/grantex/callback`. Never `http://localhost` in sandbox/prod.
+
 **TypeScript:**
 ```ts
 import { randomUUID } from "node:crypto";
 
-// 1. Start consent (e.g. triggered by "Connect Agent" button)
-const state = randomUUID();
-const auth = await p3p.createGrantexAuthorization({
-  userId: customerId,
-  agentId: process.env.GRANTEX_AGENT_ID!,   // use raw ag_... here (NOT DID form)
-  scopes: ["mpp:payment:initiate", "mpp:payment:max_txn_paise:50000"],
-  redirectUri: "https://yourapp.com/grantex/callback",
-});
-// Save state → customer mapping, then redirect user to auth.consentUrl
-
-// 2. Handle callback: GET /grantex/callback?code=...&state=...
-const exchanged = await p3p.exchangeGrantexCode({
-  code: callbackCode,
-  agentId: process.env.GRANTEX_AGENT_ID!,   // raw ag_... here too
+// Handler 1 — POST /grantex/start (e.g. from a "Connect Agent" button)
+app.post("/grantex/start", async (req, res) => {
+  const customerId = req.user.id;
+  const state = randomUUID();            // CSRF + session lookup token
+  const auth = await p3p.createGrantexAuthorization({
+    userId: customerId,                  // SDK maps userId -> principalId on the wire
+    agentId: process.env.GRANTEX_AGENT_ID!,   // raw ag_... (NOT did:grantex:ag_... form)
+    scopes: ["mpp:payment:initiate", "mpp:payment:max_txn_paise:50000"],
+    redirectUri: process.env.GRANTEX_REDIRECT_URI!,  // https://.../grantex/callback
+  });
+  await db.save(`grantex:state:${state}`, customerId);   // 10-min TTL
+  res.redirect(302, auth.consentUrl);    // send user to Grantex hosted consent page
 });
 
-// 3. Allocate budget (amounts in paise — do NOT divide by 100)
-await p3p.allocateGrantexBudget({
-  grantId: exchanged.grantId,
-  initialBudget: 50000,     // ₹500.00 in paise
-  currency: "INR",
-});
+// Handler 2 — GET /grantex/callback?code=...&state=...  (user returns after approving)
+app.get("/grantex/callback", async (req, res) => {
+  const { code, state } = req.query;
+  const customerId = await db.get(`grantex:state:${state}`);
+  if (!customerId) return res.status(400).send("invalid or expired state");
 
-// 4. Persist the grant token for this customer
-await db.save(customerId, {
-  grantToken: exchanged.grantToken,
-  grantId: exchanged.grantId,
+  const exchanged = await p3p.exchangeGrantexCode({
+    code: String(code),
+    agentId: process.env.GRANTEX_AGENT_ID!,   // raw ag_... here too
+  });
+
+  // Allocate budget (amounts in paise — do NOT divide by 100)
+  await p3p.allocateGrantexBudget({
+    grantId: exchanged.grantId,
+    initialBudget: 50000,     // ₹500.00 in paise
+    currency: "INR",
+  });
+
+  // Persist the grant token for this customer
+  await db.save(customerId, {
+    grantToken: exchanged.grantToken,
+    grantId: exchanged.grantId,
+  });
+  res.redirect(302, "/connected");   // success page
 });
 ```
 
@@ -371,7 +393,7 @@ const response = await client.get(url, {}, {
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `enforceGrant` | `boolean` | `false` | When `true`, missing/invalid grants return 403 before capture |
+| `enforceGrant` | `boolean` | `false` | When `true`, missing/invalid grants return 402 (P3PGrantexError) before capture |
 | `agentId` | `string` | — | Expected agent DID; must match grant `agt` claim. Use `did:grantex:ag_...` form |
 | `requiredScopes` | `string[]` | — | Scopes that must be present in the grant token |
 | `hosted` | `HostedGrantexConfig` | — | Required when `enforceGrant: true` |
@@ -427,6 +449,8 @@ balance = p3p.get_mandate_balance({
 })
 remaining = balance.balance_details.amount_remaining.value
 ```
+
+**Note:** Currently supports `PaymentMethod.RESERVE_PAY` only. Skip this call for `PaymentMethod.OTM` and `PaymentMethod.CARD` — per the [P3P SDK docs](https://www.pinelabs.com/docs/online-payments/ai/p3p/sdks), "While integrating with `PaymentMethod.OTM` and `PaymentMethod.CARD`, skip the Fetch Mandate Balance step." For card mandates, poll `getMandate(mandate.mandate_id)` until `order_status` is `AUTHORIZED`/`ACTIVE` and rely on the debit receipt from `decidePayment` for spend accounting.
 
 ### `decide_payment(...)` (Python helper)
 

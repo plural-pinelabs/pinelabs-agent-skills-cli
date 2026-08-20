@@ -1,65 +1,40 @@
-# P3P CLI — PPT Token Creation
+# P3P PPT Token Creation (Client SDK)
 
 ## What is a PPT Token?
 
-A PPT (Pine Labs Payment Token) is a scoped, short-lived credential that the client agent mints from an authorized mandate and shares with a server agent or resource API. It grants the server permission to debit a specific amount from the mandate, up to defined usage limits.
+A PPT (Pine Labs Payment Token) is a scoped, short-lived credential that the client mints from an ACTIVE mandate and shares with the server as `P3P-Credential: Payment <payload>`. It grants the server permission to debit a specific amount from the mandate, up to defined usage limits.
 
 The PPT is the **x402 payment credential** — the client proves authorization by presenting it.
 
+## How Tokens Are Created
+
+The client SDK creates the one-shot PPT **automatically** after the server returns a `402 Payment Required` challenge. You do not mint tokens manually in normal flows — just call the protected route and the client SDK handles challenge decode, token creation, credential header, retry, and receipt parsing:
+
+```ts
+import { P3PEnvironment, PaymentMethod, PineLabsOnlineClient } from "p3p-client-sdk";
+
+const client = PineLabsOnlineClient.create({
+  env: P3PEnvironment.SANDBOX,
+  clientId: process.env.PINELABS_CLIENT_ID!,
+  clientSecret: process.env.PINELABS_CLIENT_SECRET!,
+});
+
+const response = await client.get(
+  "https://merchant.example.com/api/premium",
+  {},
+  {
+    mobileNumber: "9876543210",
+    paymentMethod: PaymentMethod.RESERVE_PAY,
+    grantexToken: user_grant_token,   // required — Grantex consent + per-txn/daily limits enforcement
+  },
+);
+```
+
+For manual flows (rare), use `client.methods.createToken(...)`.
+
 ## Prerequisites
 
-The mandate's `order_status` must be `"AUTHORIZED"` before creating a token. If the mandate is still `CREATED` (QR not yet scanned), token creation will fail with `MPP_MANDATE_NOT_AUTHORIZED`.
-
-## Creating a Token
-
-```bash
-p3p tokens create \
-  --challenge-id <payment_method_id> \
-  --mobile-number 9876543210 \
-  --amount 10000 \
-  --json
-```
-
-### Flags
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--challenge-id <id>` | Yes | The `payment_method_id` from the mandate |
-| `--amount <paise>` | Yes | Maximum amount this token authorizes (paise). Must be ≤ mandate `amount_remaining` |
-| `--payment-method <method>` | No | `RESERVE_PAY`, `OTM`, or `Crypto` (default: `RESERVE_PAY`). Must match mandate payment method. |
-| `--mobile-number <number>` | No | Customer mobile number (required in client-credentials mode) |
-| `--customer-reference <ref>` | No | Your internal customer reference |
-| `--currency <code>` | No | Currency code, default `INR` |
-| `--json` | No | Output raw JSON |
-
-### Example Response (JSON)
-
-```json
-{
-  "data": {
-    "token_id": "ppt-v1-260405100500-ab-Jn3xRt",
-    "object": "plural_payment_token",
-    "payment_method_id": "pm-v1-260405100000-ab-RBDgpR",
-    "token": "ppt_live_eyJhbGciOiJIUzI1NiIs...",
-    "usage_limits": {
-      "max_amount": 10000,
-      "currency": "INR",
-      "max_charges": null,
-      "expires_at": "2026-04-05T12:00:00Z"
-    },
-    "usage": {
-      "amount_used": 0,
-      "charges_made": 0
-    },
-    "created_at": "2026-04-05T10:05:00Z"
-  }
-}
-```
-
-**Key fields to extract:**
-- `data.token` — the PPT string. Pass this as `--token` in `p3p debit`.
-- `data.token_id` — unique token identifier for lookups.
-- `data.usage_limits.expires_at` — token expiry. Complete debit before this time.
+The mandate must be `ACTIVE` before the paid route can complete. If the mandate is still `CREATED` (QR not yet scanned / card authorization incomplete), the 402 retry will fail with `MPP_MANDATE_NOT_AUTHORIZED`.
 
 ## Token Prefixes
 
